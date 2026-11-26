@@ -27,7 +27,8 @@ public partial class MainWindow : Window
     private int _added, _duplicates, _failed;
 
     private readonly Control _readerRoot, _libraryRoot;
-    private readonly TextBlock _zoomText, _pageText, _statusText, _titleText, _libStatus;
+    private readonly TextBox _zoomBox;
+    private readonly TextBlock _pageText, _statusText, _titleText, _libStatus;
     private readonly Image _image;
     private readonly ScrollViewer _scroll;
     private readonly ToggleButton _lock, _sortRecent, _sortName, _sortBookmarked;
@@ -42,7 +43,7 @@ public partial class MainWindow : Window
         AvaloniaXamlLoader.Load(this);
         _readerRoot = this.FindControl<Control>("ReaderRoot")!;
         _libraryRoot = this.FindControl<Control>("LibraryRoot")!;
-        _zoomText = this.FindControl<TextBlock>("ZoomText")!;
+        _zoomBox = this.FindControl<TextBox>("ZoomBox")!;
         _pageText = this.FindControl<TextBlock>("PageText")!;
         _statusText = this.FindControl<TextBlock>("StatusText")!;
         _titleText = this.FindControl<TextBlock>("TitleText")!;
@@ -71,6 +72,8 @@ public partial class MainWindow : Window
         this.FindControl<Button>("NextButton")!.Click += async (_, _) => await GoToAsync(_page + 1);
         this.FindControl<Button>("ZoomInButton")!.Click += async (_, _) => await SetZoomAsync(_zoom + 25);
         this.FindControl<Button>("ZoomOutButton")!.Click += async (_, _) => await SetZoomAsync(_zoom - 25);
+        _zoomBox.KeyDown += async (_, e) => { if (e.Key == Key.Enter) await ApplyZoomBoxAsync(); };
+        _zoomBox.LostFocus += async (_, _) => await ApplyZoomBoxAsync();
         this.FindControl<Button>("SearchButton")!.Click += async (_, _) => await SearchAsync();
         _searchBox.KeyDown += async (_, e) => { if (e.Key == Key.Enter) await SearchAsync(); };
         this.FindControl<Button>("PrevResultButton")!.Click += (_, _) => MoveResult(-1);
@@ -281,6 +284,14 @@ public partial class MainWindow : Window
         else UpdateLabels();
     }
 
+    // Typed zoom: whole numbers, snapped to 25-400. Anything else restores the old zoom.
+    private async Task ApplyZoomBoxAsync()
+    {
+        var t = _zoomBox.Text?.Trim().TrimEnd('%').Trim();
+        if (int.TryParse(t, out var v) && Math.Clamp(v, 25, 400) != _zoom) await SetZoomAsync(v);
+        else UpdateLabels();
+    }
+
     private async Task SearchAsync()
     {
         var query = _searchBox.Text?.Trim();
@@ -354,7 +365,7 @@ public partial class MainWindow : Window
 
     private void UpdateLabels()
     {
-        _zoomText.Text = $"{_zoom}%";
+        _zoomBox.Text = _zoom.ToString();
         _pageText.Text = _pdf == null ? "No PDF open" : $"Page {_page + 1} of {_pageCount}";
         _bookmarkButton.Content = _pdf != null && _bookmarks.Has(_key, _page) ? "★ Bookmarked" : "☆ Bookmark";
     }
