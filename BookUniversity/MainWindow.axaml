@@ -23,14 +23,14 @@
       </Grid>
     </Border>
     <Border DockPanel.Dock="Top" Background="#161C2E" Padding="14,8">
-      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto" ColumnSpacing="8">
+      <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
         <Button x:Name="OpenButton" Content="Open PDF" Height="40" />
         <TextBlock x:Name="TitleText" Grid.Column="1" Text="Book University" Foreground="#E6E9F2"
                    FontSize="16" FontWeight="SemiBold" Margin="6,0" VerticalAlignment="Center" />
-        <TextBox x:Name="SearchBox" Grid.Column="2" Width="240" Height="40" Watermark="Search in book" />
-        <Button x:Name="SearchButton" Grid.Column="3" Content="Search" Height="40" />
-        <Button x:Name="BookmarkButton" Grid.Column="4" Content="☆ Bookmark" Height="40" />
-        <ToggleButton x:Name="NightButton" Grid.Column="5" Content="Night mode" Height="40" IsChecked="True" />
+        <TextBox x:Name="SearchBox" Margin="4,0" Grid.Column="2" Width="240" Height="40" Watermark="Search in book" />
+        <Button x:Name="SearchButton" Margin="4,0" Grid.Column="3" Content="Search" Height="40" />
+        <Button x:Name="BookmarkButton" Margin="4,0" Grid.Column="4" Content="☆ Bookmark" Height="40" />
+        <ToggleButton x:Name="NightButton" Margin="4,0" Grid.Column="5" Content="Night mode" Height="40" IsChecked="True" />
       </Grid>
     </Border>
     <Border DockPanel.Dock="Left" Width="300" Background="#161C2E" BorderBrush="#263050" BorderThickness="0,0,1,0">
