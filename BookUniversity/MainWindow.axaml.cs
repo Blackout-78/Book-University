@@ -1,6 +1,7 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
@@ -12,6 +13,9 @@ namespace BookUniversity;
 
 public partial class MainWindow : Window
 {
+    private readonly LibraryStore _store = new();
+    private readonly BookmarkStore _bookmarks = new();
+    private LibraryEntry? _entry;
     private byte[]? _pdf;
     private string _key = "";
     private int _page;
@@ -19,42 +23,56 @@ public partial class MainWindow : Window
     private int _zoom = 100;
     private List<int> _resultPages = new();
     private List<int> _bookmarkPages = new();
-    private readonly BookmarkStore _bookmarks = new();
-    private readonly TextBlock _zoomText, _pageText, _statusText, _titleText;
+    private List<LibraryEntry> _shown = new();
+    private int _added, _duplicates, _failed;
+
+    private readonly Control _readerRoot, _libraryRoot;
+    private readonly TextBlock _zoomText, _pageText, _statusText, _titleText, _libStatus;
     private readonly Image _image;
     private readonly ScrollViewer _scroll;
-    private readonly ToggleButton _lock;
-    private readonly TextBox _searchBox;
+    private readonly ToggleButton _lock, _sortRecent, _sortName, _sortBookmarked;
+    private readonly TextBox _searchBox, _libSearch;
     private readonly Button _bookmarkButton;
-    private readonly ListBox _resultsList, _bookmarksList;
+    private readonly ListBox _resultsList, _bookmarksList, _libList;
     private readonly TabControl _tabs;
     private readonly TabItem _resultsTab, _bookmarksTab;
 
     public MainWindow()
     {
         AvaloniaXamlLoader.Load(this);
+        _readerRoot = this.FindControl<Control>("ReaderRoot")!;
+        _libraryRoot = this.FindControl<Control>("LibraryRoot")!;
         _zoomText = this.FindControl<TextBlock>("ZoomText")!;
         _pageText = this.FindControl<TextBlock>("PageText")!;
         _statusText = this.FindControl<TextBlock>("StatusText")!;
         _titleText = this.FindControl<TextBlock>("TitleText")!;
+        _libStatus = this.FindControl<TextBlock>("LibStatus")!;
         _image = this.FindControl<Image>("PageImage")!;
         _scroll = this.FindControl<ScrollViewer>("PageScroll")!;
         _lock = this.FindControl<ToggleButton>("ZoomLockButton")!;
+        _sortRecent = this.FindControl<ToggleButton>("SortRecent")!;
+        _sortName = this.FindControl<ToggleButton>("SortName")!;
+        _sortBookmarked = this.FindControl<ToggleButton>("SortBookmarked")!;
         _searchBox = this.FindControl<TextBox>("SearchBox")!;
+        _libSearch = this.FindControl<TextBox>("LibSearchBox")!;
         _bookmarkButton = this.FindControl<Button>("BookmarkButton")!;
         _resultsList = this.FindControl<ListBox>("ResultsList")!;
         _bookmarksList = this.FindControl<ListBox>("BookmarksList")!;
+        _libList = this.FindControl<ListBox>("LibList")!;
         _tabs = this.FindControl<TabControl>("SideTabs")!;
         _resultsTab = this.FindControl<TabItem>("ResultsTab")!;
         _bookmarksTab = this.FindControl<TabItem>("BookmarksTab")!;
         this.FindControl<TextBlock>("StampText")!.Text = AppInfo.Stamp;
-        this.FindControl<Button>("OpenButton")!.Click += async (_, _) => await OpenAsync();
+        this.FindControl<TextBlock>("LibStampText")!.Text = AppInfo.Stamp;
+
+        // Reader
+        this.FindControl<Button>("BackButton")!.Click += (_, _) => ShowLibrary();
         this.FindControl<Button>("PrevButton")!.Click += async (_, _) => await GoToAsync(_page - 1);
         this.FindControl<Button>("NextButton")!.Click += async (_, _) => await GoToAsync(_page + 1);
         this.FindControl<Button>("ZoomInButton")!.Click += async (_, _) => await SetZoomAsync(_zoom + 25);
         this.FindControl<Button>("ZoomOutButton")!.Click += async (_, _) => await SetZoomAsync(_zoom - 25);
         this.FindControl<Button>("SearchButton")!.Click += async (_, _) => await SearchAsync();
-        _searchBox.KeyDown += async (_, e) => { if (e.Key == Avalonia.Input.Key.Enter) await SearchAsync(); };
+        _searchBox.KeyDown += async (_, e) => { if (e.Key == Key.Enter) await SearchAsync(); };
         this.FindControl<Button>("PrevResultButton")!.Click += (_, _) => MoveResult(-1);
         this.FindControl<Button>("NextResultButton")!.Click += (_, _) => MoveResult(1);
         _bookmarkButton.Click += (_, _) => ToggleBookmark();
@@ -72,42 +90,179 @@ public partial class MainWindow : Window
         night.IsCheckedChanged += (_, _) =>
             Application.Current!.RequestedThemeVariant =
                 night.IsChecked == true ? ThemeVariant.Dark : ThemeVariant.Light;
+
+        // Library
+        this.FindControl<Button>("AddFilesButton")!.Click += async (_, _) => await AddFilesAsync();
+        this.FindControl<Button>("AddFolderButton")!.Click += async (_, _) => await AddFolderAsync();
+        this.FindControl<Button>("LibOpenButton")!.Click += async (_, _) => await OpenSelectedAsync();
+        this.FindControl<Button>("LibRemoveButton")!.Click += (_, _) => RemoveSelected();
+        _libList.DoubleTapped += async (_, _) => await OpenSelectedAsync();
+        _libSearch.TextChanged += (_, _) => RefreshLibrary();
+        foreach (var b in new[] { _sortRecent, _sortName, _sortBookmarked })
+            b.Click += (s, _) =>
+            {
+                foreach (var o in new[] { _sortRecent, _sortName, _sortBookmarked }) o.IsChecked = ReferenceEquals(o, s);
+                RefreshLibrary();
+            };
+        DragDrop.SetAllowDrop(_libraryRoot, true);
+        _libraryRoot.AddHandler(DragDrop.DragOverEvent, (_, e) => e.DragEffects = DragDropEffects.Copy);
+        _libraryRoot.AddHandler(DragDrop.DropEvent, OnDrop);
+
+        ShowLibrary();
         UpdateLabels();
     }
 
-    private async Task OpenAsync()
+    // ---------- Library ----------
+
+    private void ShowLibrary()
+    {
+        _readerRoot.IsVisible = false;
+        _libraryRoot.IsVisible = true;
+        RefreshLibrary();
+    }
+
+    private void RefreshLibrary()
+    {
+        IEnumerable<LibraryEntry> q = _store.Entries;
+        var text = _libSearch.Text?.Trim();
+        if (!string.IsNullOrEmpty(text))
+            q = q.Where(e => e.Title.Contains(text, StringComparison.OrdinalIgnoreCase));
+        if (_sortBookmarked.IsChecked == true) q = q.Where(e => _bookmarks.Get(e.Id).Count > 0);
+        q = _sortName.IsChecked == true
+            ? q.OrderBy(e => e.Title, StringComparer.OrdinalIgnoreCase)
+            : q.OrderByDescending(e => e.LastOpened).ThenByDescending(e => e.Added);
+        _shown = q.ToList();
+        _libList.ItemsSource = _shown.Select(e =>
+            $"{e.Title}   ·   {e.Pages} pages   ·   " +
+            (e.LastOpened == DateTime.MinValue ? "Not opened" : $"Page {e.LastPage + 1}")).ToList();
+        if (_added + _duplicates + _failed == 0)
+            _libStatus.Text = _store.Entries.Count == 0
+                ? "No PDFs yet. Tap + Add PDFs, tap Add folder, or drag PDFs onto this window."
+                : $"{_shown.Count} of {_store.Entries.Count} PDFs. Double-click one to open it.";
+    }
+
+    private void Tally(AddResult r)
+    {
+        if (r == AddResult.Added) _added++;
+        else if (r == AddResult.Duplicate) _duplicates++;
+        else _failed++;
+    }
+
+    private void Report()
+    {
+        _libStatus.Text = $"Added {_added}, already in library {_duplicates}, could not read {_failed}.";
+        RefreshLibrary();
+        _added = _duplicates = _failed = 0;
+    }
+
+    private async Task AddFilesAsync()
     {
         var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Open PDF",
-            AllowMultiple = false,
+            Title = "Add PDFs",
+            AllowMultiple = true,
             FileTypeFilter = new[] { new FilePickerFileType("PDF") { Patterns = new[] { "*.pdf" } } }
         });
         if (files.Count == 0) return;
+        _libStatus.Text = "Adding...";
+        foreach (var f in files)
+        {
+            try
+            {
+                await using var s = await f.OpenReadAsync();
+                Tally(await _store.AddAsync(f.Name, s));
+            }
+            catch (Exception) { _failed++; }
+        }
+        Report();
+    }
+
+    private async Task AddFolderAsync()
+    {
+        var folders = await StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions { Title = "Add a whole folder" });
+        if (folders.Count == 0) return;
+        var path = folders[0].TryGetLocalPath();
+        if (path == null) { _libStatus.Text = "Could not read that folder."; return; }
+        _libStatus.Text = "Adding...";
+        await AddPathsAsync(Directory.EnumerateFiles(path, "*.pdf", new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+            MatchCasing = MatchCasing.CaseInsensitive
+        }));
+        Report();
+    }
+
+    private async void OnDrop(object? sender, DragEventArgs e)
+    {
+        var paths = (e.Data.GetFiles() ?? Enumerable.Empty<IStorageItem>())
+            .Select(i => i.TryGetLocalPath())
+            .Where(p => p != null && p.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            .Select(p => p!)
+            .ToList();
+        if (paths.Count == 0) { _libStatus.Text = "Drop PDF files here."; return; }
+        _libStatus.Text = "Adding...";
+        await AddPathsAsync(paths);
+        Report();
+    }
+
+    private async Task AddPathsAsync(IEnumerable<string> paths)
+    {
+        foreach (var p in paths)
+        {
+            try
+            {
+                await using var s = File.OpenRead(p);
+                Tally(await _store.AddAsync(Path.GetFileName(p), s));
+            }
+            catch (Exception) { _failed++; }
+        }
+    }
+
+    private void RemoveSelected()
+    {
+        var i = _libList.SelectedIndex;
+        if (i < 0 || i >= _shown.Count) return;
+        var e = _shown[i];
+        _store.Remove(e);
+        _libStatus.Text = $"Removed {e.Title} from the library. Your original file is untouched.";
+        _added = _duplicates = _failed = 1; // keep this message until the next add
+        RefreshLibrary();
+        _added = _duplicates = _failed = 0;
+    }
+
+    private async Task OpenSelectedAsync()
+    {
+        var i = _libList.SelectedIndex;
+        if (i < 0 || i >= _shown.Count) return;
+        var entry = _shown[i];
         try
         {
-            await using var s = await files[0].OpenReadAsync();
-            using var ms = new MemoryStream();
-            await s.CopyToAsync(ms);
-            var bytes = ms.ToArray();
+            var bytes = await File.ReadAllBytesAsync(_store.PathOf(entry));
             var count = await Task.Run(() => { using var m = new MemoryStream(bytes); return Conversion.GetPageCount(m); });
+            _entry = entry;
             _pdf = bytes;
             _pageCount = count;
-            _page = 0;
+            _page = Math.Clamp(entry.LastPage, 0, count - 1);
             _zoom = 100;
-            _key = files[0].TryGetLocalPath() ?? files[0].Name;
-            _titleText.Text = files[0].Name;
+            _key = entry.Id;
+            _titleText.Text = entry.Title;
             _resultPages = new List<int>();
             _resultsList.ItemsSource = new List<string>();
             _resultsTab.Header = "Results";
             RefreshBookmarks();
+            _store.MarkOpened(entry, _page);
+            _libraryRoot.IsVisible = false;
+            _readerRoot.IsVisible = true;
             await RenderAsync();
         }
         catch (Exception ex)
         {
-            _statusText.Text = "Could not open this PDF: " + ex.Message;
+            _libStatus.Text = "Could not open this PDF: " + ex.Message;
         }
     }
+
+    // ---------- Reader ----------
 
     // Zoom lock on: keep the zoom. Off: each page resets to 100%. Every new page starts at the top.
     private async Task GoToAsync(int page)
@@ -115,6 +270,7 @@ public partial class MainWindow : Window
         if (_pdf == null || page < 0 || page >= _pageCount || page == _page) return;
         _page = page;
         if (_lock.IsChecked != true) _zoom = 100;
+        if (_entry != null) _store.MarkOpened(_entry, _page);
         await RenderAsync();
     }
 
