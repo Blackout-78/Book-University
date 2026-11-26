@@ -5,9 +5,15 @@
         Background="#0E1320" Title="Book University">
   <DockPanel>
     <Border DockPanel.Dock="Bottom" Background="#161C2E" Padding="14,8">
-      <Grid ColumnDefinitions="*,Auto">
+      <Grid ColumnDefinitions="*,Auto,*">
         <TextBlock x:Name="StampText" Foreground="#A9B3CF" FontSize="11" VerticalAlignment="Center" />
-        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="10">
+          <Button x:Name="PrevButton" Content="‹" Width="44" Height="40" />
+          <TextBlock x:Name="PageText" Foreground="#E6E9F2" FontWeight="SemiBold" MinWidth="120"
+                     TextAlignment="Center" VerticalAlignment="Center" />
+          <Button x:Name="NextButton" Content="›" Width="44" Height="40" />
+        </StackPanel>
+        <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
           <Button x:Name="ZoomOutButton" Content="−" Width="40" Height="40" />
           <TextBlock x:Name="ZoomText" Foreground="#E6E9F2" FontWeight="SemiBold" Width="56"
                      TextAlignment="Center" VerticalAlignment="Center" />
@@ -17,14 +23,19 @@
       </Grid>
     </Border>
     <Border DockPanel.Dock="Top" Background="#161C2E" Padding="14,8">
-      <Grid ColumnDefinitions="*,Auto">
-        <TextBlock Text="Book University" Foreground="#E6E9F2" FontSize="16" FontWeight="SemiBold" VerticalAlignment="Center" />
-        <ToggleButton x:Name="NightButton" Grid.Column="1" Content="Night mode" Height="40" IsChecked="True" />
+      <Grid ColumnDefinitions="Auto,*,Auto">
+        <Button x:Name="OpenButton" Content="Open PDF" Height="40" />
+        <TextBlock x:Name="TitleText" Grid.Column="1" Text="Book University" Foreground="#E6E9F2"
+                   FontSize="16" FontWeight="SemiBold" Margin="14,0" VerticalAlignment="Center" />
+        <ToggleButton x:Name="NightButton" Grid.Column="2" Content="Night mode" Height="40" IsChecked="True" />
       </Grid>
     </Border>
-    <Border Padding="24">
-      <TextBlock Text="PDF rendering comes in the next build." Foreground="#A9B3CF"
-                 HorizontalAlignment="Center" VerticalAlignment="Center" />
-    </Border>
+    <ScrollViewer x:Name="PageScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+      <Grid>
+        <Image x:Name="PageImage" Stretch="None" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="24" />
+        <TextBlock x:Name="StatusText" Text="Tap Open PDF to start." Foreground="#A9B3CF"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" />
+      </Grid>
+    </ScrollViewer>
   </DockPanel>
 </Window>
