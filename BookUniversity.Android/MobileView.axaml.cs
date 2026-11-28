@@ -399,7 +399,7 @@ public partial class MobileView : UserControl
             var bmp = await Task.Run(() =>
             {
                 using var m = new MemoryStream(bytes);
-                using var sk = Conversion.ToImage(m, page: page, options: new RenderOptions { Dpi = dpi });
+                using var sk = Conversion.ToImage(m, page: page, options: new PDFtoImage.RenderOptions { Dpi = dpi });
                 using var surface = SKSurface.Create(new SKImageInfo(sk.Width, sk.Height));
                 surface.Canvas.DrawBitmap(sk, 0, 0);
                 if (night) surface.Canvas.DrawColor(SKColors.White, SKBlendMode.Difference);
