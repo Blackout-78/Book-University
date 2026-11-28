@@ -2,6 +2,9 @@
 
 Offline, private PDF reader for Windows, Linux and Android.
 
+## v0.6.1 (build 7)
+- Settings page with version history on Windows and Linux.
+
 ## v0.6.0 (build 6)
 - Android app: library, reader, zoom lock, search, bookmarks, Night mode.
 - Progress bars in the Android library and reader.

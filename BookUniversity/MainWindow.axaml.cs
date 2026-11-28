@@ -26,7 +26,7 @@ public partial class MainWindow : Window
     private List<LibraryEntry> _shown = new();
     private int _added, _duplicates, _failed;
 
-    private readonly Control _readerRoot, _libraryRoot;
+    private readonly Control _readerRoot, _libraryRoot, _settingsRoot;
     private readonly TextBox _zoomBox;
     private readonly TextBlock _pageText, _statusText, _titleText, _libStatus;
     private readonly Image _image;
@@ -43,6 +43,7 @@ public partial class MainWindow : Window
         AvaloniaXamlLoader.Load(this);
         _readerRoot = this.FindControl<Control>("ReaderRoot")!;
         _libraryRoot = this.FindControl<Control>("LibraryRoot")!;
+        _settingsRoot = this.FindControl<Control>("SettingsRoot")!;
         _zoomBox = this.FindControl<TextBox>("ZoomBox")!;
         _pageText = this.FindControl<TextBlock>("PageText")!;
         _statusText = this.FindControl<TextBlock>("StatusText")!;
@@ -94,6 +95,20 @@ public partial class MainWindow : Window
             Application.Current!.RequestedThemeVariant =
                 night.IsChecked == true ? ThemeVariant.Dark : ThemeVariant.Light;
 
+        // Settings
+        this.FindControl<TextBlock>("SettingsVersionText")!.Text = AppInfo.Stamp;
+        this.FindControl<ListBox>("HistoryList")!.ItemsSource = VersionHistory.Lines;
+        this.FindControl<Button>("SettingsButton")!.Click += (_, _) =>
+        {
+            _libraryRoot.IsVisible = false;
+            _settingsRoot.IsVisible = true;
+        };
+        this.FindControl<Button>("SettingsBackButton")!.Click += (_, _) => ShowLibrary();
+        this.FindControl<Button>("ReleasesButton")!.Click += async (_, _) =>
+        {
+            try { await Launcher.LaunchUriAsync(new Uri(VersionHistory.ReleasesUrl)); } catch (Exception) { }
+        };
+
         // Library
         this.FindControl<Button>("AddFilesButton")!.Click += async (_, _) => await AddFilesAsync();
         this.FindControl<Button>("AddFolderButton")!.Click += async (_, _) => await AddFolderAsync();
@@ -120,6 +135,7 @@ public partial class MainWindow : Window
     private void ShowLibrary()
     {
         _readerRoot.IsVisible = false;
+        _settingsRoot.IsVisible = false;
         _libraryRoot.IsVisible = true;
         RefreshLibrary();
     }
