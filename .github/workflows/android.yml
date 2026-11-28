@@ -1,0 +1,87 @@
+name: android
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'BookUniversity.Android/**'
+      - 'BookUniversity/AppInfo.cs'
+      - 'BookUniversity/LibraryStore.cs'
+      - 'BookUniversity/BookmarkStore.cs'
+      - 'BookUniversity/PdfSearch.cs'
+      - 'docs/**'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    env:
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KS_PASS: ${{ secrets.KEYSTORE_PASSWORD }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check signing secrets
+        run: |
+          HAVE=true
+          for n in KEYSTORE_BASE64 KS_PASS KEY_ALIAS; do
+            if [ -z "${!n}" ]; then HAVE=false; fi
+          done
+          echo "HAVE_KEYS=$HAVE" >> "$GITHUB_ENV"
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - run: dotnet workload install android
+      - name: Read version
+        run: |
+          echo "V=$(grep -oP 'Version = "\K[^"]+' BookUniversity/AppInfo.cs)" >> "$GITHUB_ENV"
+          echo "B=$(grep -oP 'Build = \K[0-9]+' BookUniversity/AppInfo.cs)" >> "$GITHUB_ENV"
+      - name: Compile check only (signing secrets missing)
+        if: env.HAVE_KEYS != 'true'
+        run: |
+          dotnet build BookUniversity.Android/BookUniversity.Android.csproj -c Release
+          echo "::error::Compiled fine, but the signing secrets are missing. Add KEYSTORE_BASE64, KEYSTORE_PASSWORD and KEY_ALIAS in repo settings, then re-run."
+          exit 1
+      - name: Decode keystore
+        if: env.HAVE_KEYS == 'true'
+        run: echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+      - name: Build signed APK
+        if: env.HAVE_KEYS == 'true'
+        run: >
+          dotnet publish BookUniversity.Android/BookUniversity.Android.csproj -c Release -o out
+          -p:ApplicationDisplayVersion=$V -p:ApplicationVersion=$B
+          -p:AndroidKeyStore=true
+          -p:AndroidSigningKeyStore="$RUNNER_TEMP/release.keystore"
+          -p:AndroidSigningStorePass=env:KS_PASS
+          -p:AndroidSigningKeyAlias="$KEY_ALIAS"
+          -p:AndroidSigningKeyPass=env:KS_PASS
+      - name: Find APK
+        if: env.HAVE_KEYS == 'true'
+        run: |
+          APK=$(find out -name '*-Signed.apk' | head -1)
+          test -n "$APK" || { echo "::error::No signed APK found"; find out -name '*.apk'; exit 1; }
+          cp "$APK" "BookUniversity-Android-v$V.apk"
+          echo "APK=BookUniversity-Android-v$V.apk" >> "$GITHUB_ENV"
+      - name: Verify signature and permissions
+        if: env.HAVE_KEYS == 'true'
+        run: |
+          BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$BT/apksigner" verify --print-certs "$APK" | grep -E "Signer #1 certificate (DN|SHA-256)"
+          PERMS=$("$BT/aapt2" dump permissions "$APK" || true)
+          echo "$PERMS"
+          if echo "$PERMS" | grep -q "android.permission.INTERNET"; then echo "::error::INTERNET permission found. This app must stay offline."; exit 1; fi
+      - name: Publish GitHub release
+        if: env.HAVE_KEYS == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete android-latest --cleanup-tag -y || true
+          gh release create android-latest "$APK" \
+            --title "Book University $V Android (Build $B)" \
+            --notes-file docs/release-notes-android.md \
+            --target "$GITHUB_SHA"

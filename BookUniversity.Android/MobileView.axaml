@@ -1,0 +1,148 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="using:BookUniversity"
+             x:Class="BookUniversity.MobileView"
+             Background="#0E1320">
+  <Grid RowDefinitions="*,Auto,Auto">
+
+    <Grid Grid.Row="0">
+
+      <DockPanel x:Name="LibraryRoot">
+        <Border DockPanel.Dock="Top" Background="#161C2E" Padding="14,10">
+          <TextBlock Text="Book University" Foreground="#E6E9F2" FontSize="18" FontWeight="SemiBold" />
+        </Border>
+        <Grid DockPanel.Dock="Bottom" ColumnDefinitions="*,*" Margin="14,8">
+          <Button x:Name="AddFilesButton" Content="Add files" Height="48" Margin="0,0,4,0"
+                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                  Background="#2F5BD6" Foreground="White" />
+          <Button x:Name="AddFolderButton" Grid.Column="1" Content="Add folder" Height="48" Margin="4,0,0,0"
+                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" />
+        </Grid>
+        <StackPanel DockPanel.Dock="Top" Margin="14,10,14,0" Spacing="6">
+          <TextBox x:Name="LibSearchBox" Height="44" Watermark="Search your library" />
+          <TextBlock x:Name="LibStatus" Foreground="#8D9AB8" FontSize="13" TextWrapping="Wrap" />
+        </StackPanel>
+        <ListBox x:Name="LibList" Margin="8,4,8,0" Background="Transparent">
+          <ListBox.ItemTemplate>
+            <DataTemplate x:DataType="local:LibraryRow">
+              <Grid ColumnDefinitions="*,Auto" Margin="4,6">
+                <StackPanel Spacing="4" VerticalAlignment="Center">
+                  <TextBlock Text="{Binding Title}" TextTrimming="CharacterEllipsis" Foreground="#E6E9F2" FontSize="15" />
+                  <TextBlock Text="{Binding Subtitle}" Foreground="#8D9AB8" FontSize="12" />
+                  <ProgressBar Value="{Binding Percent}" Minimum="0" Maximum="100" Height="4" MinHeight="4"
+                               Foreground="#7FA6FF" Background="#232E4A" />
+                </StackPanel>
+                <Button Grid.Column="1" Content="✕" Tag="{Binding Id}" Width="48" Height="48" Margin="8,0,0,0"
+                        Background="Transparent" Foreground="#8D9AB8" VerticalAlignment="Center"
+                        HorizontalContentAlignment="Center" />
+              </Grid>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </ListBox>
+      </DockPanel>
+
+      <DockPanel x:Name="BookmarksRoot" IsVisible="False">
+        <Border DockPanel.Dock="Top" Background="#161C2E" Padding="14,10">
+          <TextBlock Text="Bookmarks" Foreground="#E6E9F2" FontSize="18" FontWeight="SemiBold" />
+        </Border>
+        <TextBlock x:Name="BookmarksEmpty" DockPanel.Dock="Top" Margin="14,10" Foreground="#8D9AB8"
+                   TextWrapping="Wrap" Text="No bookmarks yet. Open a PDF and tap Bookmark." />
+        <ListBox x:Name="AllBookmarksList" Margin="8,4" Background="Transparent" />
+      </DockPanel>
+
+      <DockPanel x:Name="SettingsRoot" IsVisible="False">
+        <Border DockPanel.Dock="Top" Background="#161C2E" Padding="14,10">
+          <TextBlock Text="Settings" Foreground="#E6E9F2" FontSize="18" FontWeight="SemiBold" />
+        </Border>
+        <StackPanel Margin="14,14" Spacing="12">
+          <TextBlock x:Name="VersionText" Foreground="#E6E9F2" FontSize="15" />
+          <TextBlock Foreground="#8D9AB8" FontSize="13" TextWrapping="Wrap"
+                     Text="Offline and private. No accounts, no tracking, no network access. Your PDFs stay on this phone." />
+          <Button x:Name="ReleasesButton" Content="Open GitHub Releases" Height="48" HorizontalAlignment="Stretch"
+                  HorizontalContentAlignment="Center" />
+        </StackPanel>
+      </DockPanel>
+
+      <DockPanel x:Name="ReaderRoot" IsVisible="False">
+        <Border DockPanel.Dock="Top" Background="#161C2E" Padding="8,6">
+          <Grid ColumnDefinitions="Auto,*,Auto">
+            <Button x:Name="BackButton" Content="‹" Width="48" Height="48" FontSize="22" Background="Transparent"
+                    HorizontalContentAlignment="Center" />
+            <TextBlock x:Name="TitleText" Grid.Column="1" Foreground="#E6E9F2" FontSize="16" Margin="6,0"
+                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+            <Button x:Name="SearchToggle" Grid.Column="2" Content="Search" Height="48" Background="Transparent"
+                    Foreground="#7FA6FF" />
+          </Grid>
+        </Border>
+        <Border DockPanel.Dock="Bottom" Background="#161C2E" BorderBrush="#222C44" BorderThickness="0,1,0,0">
+          <Grid ColumnDefinitions="*,*,*,*">
+            <ToggleButton x:Name="ZoomLockButton" Content="Zoom lock" Height="52" HorizontalAlignment="Stretch"
+                          HorizontalContentAlignment="Center" Background="Transparent" />
+            <Button x:Name="ZoomToggle" Grid.Column="1" Content="Zoom" Height="52" HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center" Background="Transparent" />
+            <Button x:Name="BookmarkButton" Grid.Column="2" Content="Bookmark" Height="52"
+                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="Transparent" />
+            <ToggleButton x:Name="NightButton" Grid.Column="3" Content="Night" Height="52" IsChecked="True"
+                          HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Background="Transparent" />
+          </Grid>
+        </Border>
+        <Border x:Name="ZoomPanel" DockPanel.Dock="Bottom" Background="#161C2E" Padding="14,8" IsVisible="False">
+          <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+            <Button x:Name="ZoomOutButton" Content="−" Width="52" Height="48" HorizontalContentAlignment="Center" />
+            <TextBox x:Name="ZoomBox" Width="84" Height="48" TextAlignment="Center" MaxLength="4"
+                     TextInputOptions.ContentType="Digits" />
+            <TextBlock Text="%" Foreground="#E6E9F2" VerticalAlignment="Center" />
+            <Button x:Name="ZoomInButton" Content="+" Width="52" Height="48" HorizontalContentAlignment="Center" />
+          </StackPanel>
+        </Border>
+        <Border DockPanel.Dock="Bottom" Background="#161C2E" Padding="14,6,14,8">
+          <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto">
+            <Button x:Name="PrevButton" Content="‹" Width="48" Height="40" HorizontalContentAlignment="Center"
+                    Background="Transparent" />
+            <Grid Grid.Column="1" ColumnDefinitions="*,Auto" VerticalAlignment="Center" Margin="8,0">
+              <TextBlock x:Name="PageText" Foreground="#8D9AB8" FontSize="12" />
+              <TextBlock x:Name="PercentText" Grid.Column="1" Foreground="#8D9AB8" FontSize="12" />
+            </Grid>
+            <Button x:Name="NextButton" Grid.Column="2" Content="›" Width="48" Height="40"
+                    HorizontalContentAlignment="Center" Background="Transparent" />
+            <ProgressBar x:Name="ReadProgress" Grid.Row="1" Grid.ColumnSpan="3" Minimum="0" Maximum="100"
+                         Height="6" MinHeight="6" Foreground="#7FA6FF" Background="#232E4A" />
+          </Grid>
+        </Border>
+        <Border x:Name="SearchPanel" DockPanel.Dock="Top" Background="#161C2E" Padding="14,6,14,8" IsVisible="False">
+          <StackPanel Spacing="6">
+            <Grid ColumnDefinitions="*,Auto">
+              <TextBox x:Name="SearchBox" Height="44" Watermark="Search in book" />
+              <Button x:Name="SearchGo" Grid.Column="1" Content="Go" Width="64" Height="44" Margin="6,0,0,0"
+                      HorizontalContentAlignment="Center" />
+            </Grid>
+            <ListBox x:Name="ResultsList" MaxHeight="220" Background="Transparent" />
+          </StackPanel>
+        </Border>
+        <ScrollViewer x:Name="PageScroll" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+          <Grid>
+            <Image x:Name="PageImage" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Top" />
+            <TextBlock x:Name="StatusText" Foreground="#8D9AB8" HorizontalAlignment="Center"
+                       VerticalAlignment="Center" TextWrapping="Wrap" Margin="24" />
+          </Grid>
+        </ScrollViewer>
+      </DockPanel>
+
+    </Grid>
+
+    <Border x:Name="NavBar" Grid.Row="1" Background="#161C2E" BorderBrush="#222C44" BorderThickness="0,1,0,0">
+      <Grid ColumnDefinitions="*,*,*">
+        <Button x:Name="TabLibrary" Content="Library" Height="52" HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center" Background="Transparent" />
+        <Button x:Name="TabBookmarks" Grid.Column="1" Content="Bookmarks" Height="52" HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center" Background="Transparent" />
+        <Button x:Name="TabSettings" Grid.Column="2" Content="Settings" Height="52" HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center" Background="Transparent" />
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="2" Background="#161C2E" Padding="10,2,10,4">
+      <TextBlock x:Name="StampText" Foreground="#5D6A88" FontSize="10" HorizontalAlignment="Left" />
+    </Border>
+  </Grid>
+</UserControl>
